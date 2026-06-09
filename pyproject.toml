@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "emotionalmagenta"
+version = "0.1.0"
+description = "EmotionalMagenta project"
+requires-python = ">=3.12"
+
+dependencies = [
+	"ai-edge-litert",
+	"click",
+	"numpy",
+	"tf-keras",
+	"scipy",
+	"einops",
+	"safetensors",
+	"typeguard==2.13.3",
+	"jaxtyping",
+	"recurrentgemma[jax]>=1.0.1",
+	"google-cloud-storage",
+	"huggingface_hub",
+	"simple-term-menu",
+	"librosa",
+	"resampy",
+	"sentencepiece",
+	"soundfile",
+	"opencv-python",
+	"ipython",
+	"deepface",
+	"mlx",
+	"flax",
+	"typing_extensions",
+]
+
+[tool.setuptools.packages.find]
+where = [".", "magenta-realtime"]
+include = ["magenta_rt*", "src*"]

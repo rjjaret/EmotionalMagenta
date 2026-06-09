@@ -1,0 +1,32 @@
+# macOS
+.DS_Store
+
+# Python caches and metadata
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+
+# Local staging for excluded files
+removed/
+
+# Build outputs
+build/
+dist/
+magenta-realtime/build/
+
+# Node dependencies and frontend build cache
+node_modules/
+*.tsbuildinfo
+
+# Editor/runtime noise
+.coverage
+coverage.xml
