@@ -54,6 +54,12 @@ def get_music(prompt: str = "ambient music", model_name: str = "mrt2_base"):
 
 COLLIDER_BUNDLE_ID = "com.google.mrt2.collider"
 _env_collider_path = os.environ.get("COLLIDER_APP_PATH")
+_repo_prebuilt_collider_path = (
+    Path(__file__).resolve().parent
+    / "prebuilt"
+    / "collider"
+    / "mrt2_collider.app"
+)
 _backseat_collider_path = (
     Path(__file__).resolve().parent.parent
     / "BackseatPJ"
@@ -65,6 +71,7 @@ _backseat_collider_path = (
 )
 COLLIDER_APP_CANDIDATES = [
     Path(_env_collider_path).expanduser() if _env_collider_path else None,
+    _repo_prebuilt_collider_path,
     _backseat_collider_path,
     Path(__file__).resolve().parent / "magenta-realtime" / "build" / "examples" / "collider" / "mrt2_collider.app",
     Path.home() / "Applications" / "MRT2 - Collider.app",

@@ -52,8 +52,10 @@ target_link_libraries(magentart_core PUBLIC
 install(TARGETS magentart_core EXPORT magentartTargets)
 install(DIRECTORY include/magentart DESTINATION include)
 
-# Standalone unit test for NumpyRandomState bit-exactness
-add_executable(numpy_random_state_test
-    src/numpy_random_state_test.cpp
-)
-target_include_directories(numpy_random_state_test PRIVATE src)
+# Standalone unit test for NumpyRandomState bit-exactness (only if source is present)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/numpy_random_state_test.cpp")
+    add_executable(numpy_random_state_test
+        src/numpy_random_state_test.cpp
+    )
+    target_include_directories(numpy_random_state_test PRIVATE src)
+endif()

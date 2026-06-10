@@ -1,0 +1,2 @@
+# Track checked-in prebuilt Collider artifacts with Git LFS
+prebuilt/collider/** filter=lfs diff=lfs merge=lfs -text
