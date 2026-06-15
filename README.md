@@ -29,26 +29,23 @@ The current main flow:
 No local build is required for normal use. The repo includes a prebuilt `collider_em.app`.
 
 1. Create and activate a virtual environment:
-
 ```bash
 python3.12 -m venv .venv
 source .venv/bin/activate
 ```
 
 2. Install project dependencies:
-
 ```bash
 pip install -e .
 ```
 
-3. Run the app.:
-
-The first time it runs may take a little longer while it downloads the emotion detection model.
+3. Run the app. 
 ```bash
 python main.py
 ```
+(Collider will ocassionally crash on startup. If this happens, send and interupt to terminal and rerun python main.py):
 
-Press `q` in the OpenCV loop to exit.
+<!-- Press `q` in the OpenCV loop to exit. -->
 
 ## Build Scripts
 
