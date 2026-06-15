@@ -7,8 +7,6 @@ The current main flow:
 - Aggregates emotion signals over a time window for stability.
 - Launches and updates the revised Collider app with a special emotion prompt node with the latest detected emotion. 
 
-- The first time main.py is run, there is a delay while the analyzer model is downloaded. Possibly related, the collider app sometimes crashes the first time main.py is run. Send a keyboard interrupt to stop main.py and rerun and you should be good to go. 
-
 ## Repository Layout
 
 - `main.py`: Primary runtime entrypoint (camera + emotion + Collider bridge).
@@ -43,7 +41,8 @@ pip install -e .
 ```bash
 python main.py
 ```
-(Collider will ocassionally crash on startup. If this happens, send and interupt to terminal and rerun python main.py):
+- The first time main.py is run, there is a delay while the analyzer model is downloaded. 
+- If the collider app crashes, send a keyboard interrupt to stop main.py. Then rerun python main.py and you should be good to go. 
 
 <!-- Press `q` in the OpenCV loop to exit. -->
 
@@ -180,3 +179,13 @@ If this was unintentional, restart with:
 ```bash
 python main.py
 ```
+
+## License
+
+This project's own code is licensed under the **Apache License 2.0** — see [LICENSE](LICENSE) for details.
+
+Third-party components have their own licenses (Apache 2.0):
+- **magenta-realtime**: Apache 2.0 — see [third_party/licenses/magenta-realtime-LICENSE](third_party/licenses/magenta-realtime-LICENSE)
+- **sequence-layers**: Apache 2.0 — see [third_party/licenses/sequence-layers-LICENSE](third_party/licenses/sequence-layers-LICENSE)
+
+For full attribution details, see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
