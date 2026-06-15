@@ -1,11 +1,13 @@
 # EmotionalMagenta
 
-Emotional Magenta is the accessibility award winning project from the Music Hackspace Hackathon at Berklee College of Music on June 6-7, 2026. It connects live facial emotion analysis to Magenta Realtime music generation application Collider.
+Emotional Magenta is the accessibility award winning project from the Music Hackspace Hackathon at Berklee College of Music on June 6-7, 2026. It connects live facial emotion analysis to Magenta Realtime music generation application Collider. Some modifications have been made since.
 
 The current main flow:
 - Reads webcam frames and performs periodic emotion analysis.
 - Aggregates emotion signals over a time window for stability.
 - Launches and updates the revised Collider app with a special emotion prompt node with the latest detected emotion. 
+
+- The first time main.py is run, there is a delay while the analyzer model is downloaded. Possibly related, the collider app sometimes crashes the first time main.py is run. Send a keyboard interrupt to stop main.py and rerun and you should be good to go. 
 
 ## Repository Layout
 
@@ -86,34 +88,14 @@ If the app is missing, run `./scripts/rebuild_all.sh` or set `COLLIDER_APP_PATH`
 Yes. You can include a built Collider app so users can run immediately without building first.
 
 Recommended approach:
-1. Build Collider once on a trusted macOS machine.
-2. Copy the app bundle to `prebuilt/collider/collider_em.app`.
+1. Build Collider once on a trusted macOS machine using 'scripts/rebuild_all.sh'. This also runs stage_prebuilt_Collider.sh, which moves the newly bulit binary to 'prebuilt/collider/collider_em.app'.
 3. Commit with Git LFS enabled for `prebuilt/collider/**`.
-
-Git LFS setup (once per clone):
-
-```bash
-git lfs install
-git lfs track "prebuilt/collider/**"
-git add .gitattributes prebuilt/collider/collider_em.app
-git commit -m "Add prebuilt Collider app"
-```
-
-Or use the helper script to copy from your latest local build and stage changes:
-
-```bash
-./scripts/stage_prebuilt_collider.sh
-```
 
 Optional overrides:
 - `SOURCE_APP_PATH=/absolute/path/to/collider_em.app`
 - `AUTO_STAGE=0` (copy only, do not run `git add`)
 
 Notes:
-- Prebuilt macOS apps may trigger Gatekeeper prompts on first run.
-- If architecture matters, publish separate bundles (Apple Silicon and Intel) or provide one universal build.
-- Source build remains available as fallback via `./scripts/rebuild_all.sh`.
-
 ## Troubleshooting
 
 ### Camera not opening
