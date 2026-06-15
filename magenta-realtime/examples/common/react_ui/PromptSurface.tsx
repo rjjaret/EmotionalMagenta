@@ -20,6 +20,11 @@ import GUI from 'lil-gui';
 import { ALL_COLORS } from './colors';
 import './prompt-surface.css';
 
+function formatEmotionLabel(value: string): string {
+  if (!value) return value;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const STROKE_WIDTH = 3;
@@ -65,6 +70,9 @@ export interface PromptNode {
   label: string;
   colorIndex: number;
   isAudio?: boolean;
+  isEmotion?: boolean;
+  emotionPrompt?: string;
+  emotionValue?: string;
 }
 
 export interface ListenerNode {
@@ -895,58 +903,76 @@ export function PromptSurface({
                 transform: 'translate(-50%, -100%)',
               }}
             >
-              <input
-                ref={!p.isAudio && isJustCreated ? (el) => {
-                  if (el) {
-                    el.focus();
-                    el.select();
-                    justCreatedIdRef.current = null;
-                  }
-                } : undefined}
-                readOnly={p.isAudio}
-                style={{
-                  padding: '2px 12px',
-                  borderRadius: '9999px',
-                  fontSize: '13px',
-                  fontWeight: 500,
-                  textAlign: 'center',
-                  outline: 'none',
-                  margin: 0,
-                  border: 'none',
-                  whiteSpace: 'nowrap',
-                  pointerEvents: p.isAudio ? 'none': 'auto',
-                  cursor: p.isAudio ? 'default' : 'text',
-                  color: 'white',
-                  background: 'rgba(0, 0, 0, 0.5)',
-                  fontFamily: "'Google Sans Text', system-ui, sans-serif",
-                  fieldSizing: 'content',
-                } as React.CSSProperties}
-                value={p.isAudio ? `♪ ${p.label}` : p.label}
-                spellCheck={false}
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                onFocus={() => {
-                  if (p.isAudio) return;
-                  preEditRef.current = p.label;
-                  onBallSelect(null);
-                }}
-                onBlur={() => {
-                  if (p.isAudio) return;
-                  if (!p.label.trim()) {
-                    onPromptTextChange(p.id, preEditRef.current);
-                  }
-                }}
-                onChange={(e) => {
-                  if (p.isAudio) return;
-                  onPromptTextChange(p.id, e.target.value);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    (e.target as HTMLInputElement).blur();
-                  }
-                }}
-              />
+              <div style={{ position: 'relative', display: 'inline-block' }}>
+                {p.isEmotion && (
+                  <span
+                    className="emotion-heart-icon emotion-heart-icon-large"
+                    aria-hidden="true"
+                    style={{
+                      position: 'absolute',
+                      left: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      zIndex: 1,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    ♥
+                  </span>
+                )}
+                <input
+                  ref={!p.isAudio && isJustCreated ? (el) => {
+                    if (el) {
+                      el.focus();
+                      el.select();
+                      justCreatedIdRef.current = null;
+                    }
+                  } : undefined}
+                  readOnly={p.isAudio || p.isEmotion}
+                  style={{
+                    padding: p.isEmotion ? '2px 12px 2px 38px' : '2px 12px',
+                    borderRadius: '9999px',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    textAlign: 'center',
+                    outline: 'none',
+                    margin: 0,
+                    border: 'none',
+                    whiteSpace: 'nowrap',
+                    pointerEvents: (p.isAudio || p.isEmotion) ? 'none': 'auto',
+                    cursor: (p.isAudio || p.isEmotion) ? 'default' : 'text',
+                    color: 'white',
+                    background: 'rgba(0, 0, 0, 0.5)',
+                    fontFamily: "'Google Sans Text', system-ui, sans-serif",
+                    fieldSizing: 'content',
+                  } as React.CSSProperties}
+                  value={p.isAudio ? `♪ ${p.label}` : (p.isEmotion ? formatEmotionLabel(p.emotionValue || p.label) : p.label)}
+                  spellCheck={false}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  onFocus={() => {
+                    if (p.isAudio || p.isEmotion) return;
+                    preEditRef.current = p.label;
+                    onBallSelect(null);
+                  }}
+                  onBlur={() => {
+                    if (p.isAudio || p.isEmotion) return;
+                    if (!p.label.trim()) {
+                      onPromptTextChange(p.id, preEditRef.current);
+                    }
+                  }}
+                  onChange={(e) => {
+                    if (p.isAudio || p.isEmotion) return;
+                    onPromptTextChange(p.id, e.target.value);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      (e.target as HTMLInputElement).blur();
+                    }
+                  }}
+                />
+              </div>
             </div>
           );
         })}

@@ -7,11 +7,13 @@
     <key>CFBundleExecutable</key>
     <string>${MACOSX_BUNDLE_EXECUTABLE_NAME}</string>
     <key>CFBundleIdentifier</key>
-    <string>com.google.mrt2.collider</string>
+    <string>com.google.collider_em</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
+    <key>CFBundleDisplayName</key>
+    <string>Collider - Emotional Magenta</string>
     <key>CFBundleName</key>
-    <string>MRT2 - Collider</string>
+    <string>Collider - Emotional Magenta</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon.icns</string>
     <key>CFBundlePackageType</key>

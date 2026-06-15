@@ -274,7 +274,7 @@ static NSSlider* makeSlider(CGFloat x, CGFloat y, CGFloat w, double min, double 
     [c addSubview:midiHeader];
     y -= 20;
 
-    _midiVirtualLabel = [NSTextField labelWithString:@"Virtual port: MRT2 - Collider Input"];
+    _midiVirtualLabel = [NSTextField labelWithString:@"Virtual port: collider_em Input"];
     _midiVirtualLabel.frame = NSMakeRect(pad, y, 400, 16);
     _midiVirtualLabel.font = [NSFont systemFontOfSize:10];
     _midiVirtualLabel.textColor = [NSColor tertiaryLabelColor];
@@ -587,7 +587,7 @@ static NSSlider* makeSlider(CGFloat x, CGFloat y, CGFloat w, double min, double 
                                                     NSWindowStyleMaskResizable
                                             backing:NSBackingStoreBuffered
                                               defer:NO];
-    _window.title = @"MRT2 - Collider";
+    _window.title = @"Collider - Emotional Magenta";
     _window.restorable = NO;
     _window.contentMinSize = NSMakeSize(310, 310);
     _window.contentViewController = _controller;
@@ -652,7 +652,7 @@ static NSSlider* makeSlider(CGFloat x, CGFloat y, CGFloat w, double min, double 
     ColliderSharedState* shared = &_sharedState;
 
     OSStatus status = MIDIClientCreateWithBlock(
-        CFSTR("MRT2 - Collider"),
+        CFSTR("collider_em"),
         &_midiClient,
         ^(const MIDINotification* notification) {
             if (notification->messageID == kMIDIMsgSetupChanged) {
@@ -665,7 +665,7 @@ static NSSlider* makeSlider(CGFloat x, CGFloat y, CGFloat w, double min, double 
     if (status != noErr) { NSLog(@"Collider: MIDIClientCreate failed: %d", (int)status); return; }
 
     status = MIDIInputPortCreateWithProtocol(
-        _midiClient, CFSTR("MRT2 - Collider In"), kMIDIProtocol_1_0, &_midiInputPort,
+        _midiClient, CFSTR("collider_em In"), kMIDIProtocol_1_0, &_midiInputPort,
         ^(const MIDIEventList* evtList, void* srcConnRefCon) {
             const MIDIEventPacket* pkt = &evtList->packet[0];
             for (UInt32 i = 0; i < evtList->numPackets; ++i) {
@@ -693,7 +693,7 @@ static NSSlider* makeSlider(CGFloat x, CGFloat y, CGFloat w, double min, double 
     if (status != noErr) { NSLog(@"Collider: MIDIInputPortCreate failed: %d", (int)status); return; }
 
     status = MIDIDestinationCreateWithProtocol(
-        _midiClient, CFSTR("MRT2 - Collider Input"), kMIDIProtocol_1_0, &_midiVirtualDest,
+        _midiClient, CFSTR("collider_em Input"), kMIDIProtocol_1_0, &_midiVirtualDest,
         ^(const MIDIEventList* evtList, void* srcConnRefCon) {
             const MIDIEventPacket* pkt = &evtList->packet[0];
             for (UInt32 i = 0; i < evtList->numPackets; ++i) {
@@ -730,11 +730,11 @@ static NSSlider* makeSlider(CGFloat x, CGFloat y, CGFloat w, double min, double 
 
     NSMenuItem* appMenuItem = [[NSMenuItem alloc] init];
     NSMenu* appMenu = [[NSMenu alloc] init];
-    [appMenu addItemWithTitle:@"About MRT2 - Collider" action:@selector(orderFrontStandardAboutPanel:) keyEquivalent:@""];
+    [appMenu addItemWithTitle:@"About Collider - Emotional Magenta" action:@selector(orderFrontStandardAboutPanel:) keyEquivalent:@""];
     [appMenu addItem:[NSMenuItem separatorItem]];
     [appMenu addItemWithTitle:@"Settings..." action:@selector(menuShowSettings:) keyEquivalent:@","];
     [appMenu addItem:[NSMenuItem separatorItem]];
-    [appMenu addItemWithTitle:@"Quit MRT2 - Collider" action:@selector(terminate:) keyEquivalent:@"q"];
+    [appMenu addItemWithTitle:@"Quit Collider - Emotional Magenta" action:@selector(terminate:) keyEquivalent:@"q"];
     appMenuItem.submenu = appMenu;
     [menuBar addItem:appMenuItem];
 

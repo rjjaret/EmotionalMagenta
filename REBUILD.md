@@ -15,7 +15,7 @@ This project can be rebuilt from scratch on macOS with one script:
    - `mrt models download mrt2_base` (default model)
 4. Reconfigures and rebuilds Collider from project-local `magenta-realtime`:
    - `cmake -S magenta-realtime -B magenta-realtime/build`
-   - `cmake --build magenta-realtime/build --target deploy_mrt2_collider -j10`
+   - `cmake --build magenta-realtime/build --target deploy_collider_em -j10`
 5. The in-repo `magenta-realtime` tree preserves upstream structure but includes only Collider-required parts (`core`, `examples/common`, `examples/collider`, and examples workspace files).
 
 ## Required prerequisites
@@ -45,7 +45,7 @@ MODEL_NAME=mrt2_small JOBS=8 ./scripts/rebuild_all.sh
 `main.py` now checks these Collider app locations in order:
 
 1. `COLLIDER_APP_PATH` environment variable (if set)
-2. `magenta-realtime/build/examples/collider/mrt2_collider.app`
-3. `~/Applications/MRT2 - Collider.app`
+2. `magenta-realtime/build/examples/collider/collider_em.app`
+3. `~/Applications/collider_em.app`
 
 So after a local Collider rebuild, the app is discovered automatically without manual copying.

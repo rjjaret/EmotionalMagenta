@@ -83,8 +83,6 @@ static BOOL isDevServerRunning(void) {
 - (void)handleSelectModel:(NSString*)modelName;
 - (void)handleDeleteModel:(NSString*)modelName;
 - (void)handleInitResources:(NSString*)modelName;
-- (void)startEmotionBridgeIfPossible;
-- (void)stopEmotionBridge;
 @end
 
 @implementation ColliderAppController {
@@ -96,7 +94,9 @@ static BOOL isDevServerRunning(void) {
     NSString* _modelName;
     NSString* _currentPromptText;
     BOOL _isPlaying;
-    NSTask* _emotionBridgeTask;
+    NSString* _lastEmotionPrompt;
+    NSString* _lastEmotionState;
+    NSString* _lastLoggedEmotionState;
 }
 
 // ─── Parameter bridging ──────────────────────────────────────────────────────
@@ -169,108 +169,16 @@ static BOOL isDevServerRunning(void) {
                                                   selector:@selector(updateMetrics)
                                                   userInfo:nil
                                                    repeats:YES];
-
-    [self startEmotionBridgeIfPossible];
 }
 
 - (void)viewDidDisappear {
     [super viewDidDisappear];
-    [self stopEmotionBridge];
     if (_metricsTimer) { [_metricsTimer invalidate]; _metricsTimer = nil; }
     if (_webView) {
         [_webView.configuration.userContentController removeScriptMessageHandlerForName:@"auHost"];
         [_webView removeFromSuperview];
         _webView = nil;
     }
-}
-
-- (void)startEmotionBridgeIfPossible {
-    if (_emotionBridgeTask && _emotionBridgeTask.running) {
-        return;
-    }
-
-    NSString* scriptPath = [[NSBundle mainBundle] pathForResource:@"collider_emotion_bridge" ofType:@"py"];
-    if (!scriptPath.length) {
-        NSLog(@"Collider: emotion bridge script not bundled");
-        return;
-    }
-
-    NSFileManager* fm = [NSFileManager defaultManager];
-    NSString* envRoot = NSProcessInfo.processInfo.environment[@"EMOTIONALMAGENTA_ROOT"];
-    NSString* savedRoot = [[NSUserDefaults standardUserDefaults] stringForKey:@"Collider_EmotionProjectRoot"];
-    NSString* cwdRoot = [fm currentDirectoryPath];
-    NSString* defaultRoot = [@"~/Documents/Git/Hackathon-2026/EmotionalMagenta" stringByExpandingTildeInPath];
-
-    NSArray<NSString*>* rootCandidates = @[envRoot ?: @"", savedRoot ?: @"", cwdRoot ?: @"", defaultRoot ?: @""];
-    NSString* projectRoot = nil;
-    for (NSString* candidate in rootCandidates) {
-        if (!candidate.length) continue;
-        NSString* analyzerPath = [candidate stringByAppendingPathComponent:@"src/core/analyzer.py"];
-        if ([fm fileExistsAtPath:analyzerPath]) {
-            projectRoot = candidate;
-            break;
-        }
-    }
-    if (!projectRoot.length) {
-        NSLog(@"Collider: emotion bridge disabled (project root not found)");
-        return;
-    }
-
-    NSString* envPython = NSProcessInfo.processInfo.environment[@"EMOTIONALMAGENTA_PYTHON"];
-    NSString* savedPython = [[NSUserDefaults standardUserDefaults] stringForKey:@"Collider_EmotionPython"];
-    NSString* venvPython = [projectRoot stringByAppendingPathComponent:@".venv/bin/python"];
-    NSArray<NSString*>* pyCandidates = @[envPython ?: @"", savedPython ?: @"", venvPython, @"/usr/bin/python3"];
-    NSString* pythonPath = nil;
-    for (NSString* candidate in pyCandidates) {
-        if (!candidate.length) continue;
-        if ([fm isExecutableFileAtPath:candidate]) {
-            pythonPath = candidate;
-            break;
-        }
-    }
-    if (!pythonPath.length) {
-        NSLog(@"Collider: emotion bridge disabled (python not found)");
-        return;
-    }
-
-    NSTask* task = [[NSTask alloc] init];
-    task.launchPath = pythonPath;
-    task.arguments = @[
-        scriptPath,
-        @"--project-root", projectRoot,
-        @"--camera-index", @"0",
-        @"--camera-width", @"320",
-        @"--camera-height", @"240"
-    ];
-
-    NSPipe* outPipe = [NSPipe pipe];
-    NSPipe* errPipe = [NSPipe pipe];
-    task.standardOutput = outPipe;
-    task.standardError = errPipe;
-
-    __weak typeof(self) weakSelf = self;
-    task.terminationHandler = ^(NSTask* finishedTask) {
-        NSLog(@"Collider: emotion bridge exited with status %d", finishedTask.terminationStatus);
-        __strong typeof(weakSelf) strongSelf = weakSelf;
-        if (strongSelf) {
-            strongSelf->_emotionBridgeTask = nil;
-        }
-    };
-
-    @try {
-        [task launch];
-        _emotionBridgeTask = task;
-        NSLog(@"Collider: started emotion bridge (%@)", pythonPath);
-    } @catch (NSException* ex) {
-        NSLog(@"Collider: failed to start emotion bridge: %@", ex.reason);
-    }
-}
-
-- (void)stopEmotionBridge {
-    if (_emotionBridgeTask && _emotionBridgeTask.running) {
-        [_emotionBridgeTask terminate];
-    }
-    _emotionBridgeTask = nil;
 }
 
 // ─── Metrics polling (25 Hz) ─────────────────────────────────────────────────
@@ -335,6 +243,18 @@ static BOOL isDevServerRunning(void) {
         }
     }
     if (params.count > 0) stateUpdate[@"params"] = params;
+
+    NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
+    NSString* emotionPrompt = [defaults stringForKey:@"Collider_EmotionPrompt"];
+    if (emotionPrompt.length > 0 && ![_lastEmotionPrompt isEqualToString:emotionPrompt]) {
+        stateUpdate[@"emotionPrompt"] = emotionPrompt;
+        _lastEmotionPrompt = emotionPrompt;
+    }
+    NSString* emotionState = [defaults stringForKey:@"Collider_EmotionState"];
+    if (emotionState.length > 0 && ![_lastEmotionState isEqualToString:emotionState]) {
+        stateUpdate[@"emotionState"] = emotionState;
+        _lastEmotionState = emotionState;
+    }
 
     if (stateUpdate.count > 0) [self sendStateUpdate:stateUpdate];
 }
@@ -473,16 +393,29 @@ static BOOL isDevServerRunning(void) {
         if ([promptsArray isKindOfClass:[NSArray class]] && self.engine) {
             std::vector<std::string> texts;
             std::vector<float> weights;
+            NSMutableArray<NSString*>* promptDebug = [NSMutableArray array];
+            NSInteger promptIndex = 0;
             for (NSDictionary* p in promptsArray) {
                 NSString* text = p[@"text"];
                 NSNumber* weight = p[@"weight"];
                 if ([text isKindOfClass:[NSString class]] && [weight isKindOfClass:[NSNumber class]]) {
                     texts.push_back(text.UTF8String);
                     weights.push_back(weight.floatValue);
+                    [promptDebug addObject:[NSString stringWithFormat:@"%ld:weight=%.3f text=%@", (long)promptIndex, weight.floatValue, text]];
                 }
+                promptIndex += 1;
             }
             self.engine->set_text_prompts(texts, weights);
             self.engine->set_blend_weights(weights.data(), (int)weights.size());
+
+            NSString* currentEmotionState = [[NSUserDefaults standardUserDefaults] stringForKey:@"Collider_EmotionState"];
+            if (currentEmotionState.length == 0) currentEmotionState = @"neutral";
+            if (!_lastLoggedEmotionState || ![_lastLoggedEmotionState isEqualToString:currentEmotionState]) {
+                NSString* payloadSummary = [promptDebug componentsJoinedByString:@" | "];
+                if (payloadSummary.length == 0) payloadSummary = @"<empty>";
+                NSLog(@"Collider engine textPrompts: %@", payloadSummary);
+                _lastLoggedEmotionState = currentEmotionState;
+            }
 
             // Persist current prompt and history
             if (texts.size() > 0) {
@@ -1077,7 +1010,6 @@ static BOOL isDevServerRunning(void) {
 }
 
 - (void)dealloc {
-    [self stopEmotionBridge];
     [_metricsTimer invalidate];
 }
 

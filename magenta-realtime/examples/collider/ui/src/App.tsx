@@ -40,6 +40,11 @@ const post = (msg: any) => window.webkit?.messageHandlers?.auHost?.postMessage(m
 
 const MAX_ENGINE_PROMPTS = 6;
 
+function promptForEngine(node: PromptNode): string {
+  if (!node.isEmotion) return node.label;
+  return node.emotionPrompt ?? '';
+}
+
 // ─── Defaults ────────────────────────────────────────────────────────────────
 
 const DEFAULT_PHYSICS_SPEED = 0.5;
@@ -142,7 +147,10 @@ function App() {
       const { width, height } = el.getBoundingClientRect();
       if (width > 0 && height > 0) {
         const layout = buildInitialLayout(width, height);
-        setPrompts(layout.prompts);
+        setPrompts((prev) => {
+          const persistentNodes = prev.filter((p) => p.isEmotion || p.isAudio);
+          return [...layout.prompts, ...persistentNodes];
+        });
         setListener(layout.listener);
         layoutInitialized.current = true;
       }
@@ -173,6 +181,43 @@ function App() {
   /** Index into SHUFFLED_SUGGESTIONS — starts at 3 because the first 3 are used for initial prompts. */
   const deckIndexRef = useRef(3);
 
+  const upsertEmotionNode = useCallback((emotionPrompt?: string, emotionState?: string) => {
+    const trimmedPrompt = (emotionPrompt || '').trim();
+    const trimmedState = (emotionState || '').trim();
+    setPrompts((prev) => {
+      const existing = prev.findIndex((p) => p.isEmotion);
+      if (existing !== -1) {
+        return prev.map((p, i) => {
+          if (i !== existing) return p;
+          const nextEmotionValue = trimmedState || p.emotionValue || p.label || 'neutral';
+          return {
+            ...p,
+            label: nextEmotionValue,
+            emotionPrompt: trimmedPrompt || p.emotionPrompt || '',
+            emotionValue: nextEmotionValue,
+          };
+        });
+      }
+      const el = promptSurfaceRef.current;
+      const w = el ? el.getBoundingClientRect().width : 800;
+      const h = el ? el.getBoundingClientRect().height : 600;
+      const emotionValue = trimmedState || 'neutral';
+      return [
+        ...prev,
+        {
+          id: nextIdRef.current++,
+          x: Math.max(80, Math.min(w - 80, w * 0.82)),
+          y: Math.max(80, Math.min(h - 80, h * 0.22)),
+          label: emotionValue,
+          colorIndex: nextColorRef.current++,
+          isEmotion: true,
+          emotionPrompt: trimmedPrompt,
+          emotionValue,
+        },
+      ];
+    });
+  }, []);
+
 
   // Refs for current state (used by updateState callback)
   const promptsRef = useRef(prompts);
@@ -184,23 +229,31 @@ function App() {
 
   const sendPrompts = useCallback(() => {
     const weights = calculateWeights(listenerRef.current, promptsRef.current);
-    // Build engine payload — audio prompt must be at index 0 (native hardcodes it there)
+    // Build engine payload with stable priority:
+    // 1) emotion prompt first
+    // 2) audio prompt next
+    // 3) remaining prompts in existing order
     const data: { text: string; weight: number }[] = Array.from({ length: MAX_ENGINE_PROMPTS }, () => ({ text: '', weight: 0 }));
-    const audioIdx = promptsRef.current.findIndex(p => p.isAudio);
-    if (audioIdx !== -1) {
-      data[0] = { text: promptsRef.current[audioIdx].label, weight: weights[audioIdx] ?? 0 };
-      let dest = 1;
-      promptsRef.current.forEach((p, i) => {
-        if (i !== audioIdx && dest < MAX_ENGINE_PROMPTS) {
-          data[dest++] = { text: p.label, weight: weights[i] ?? 0 };
-        }
-      });
-    } else {
-      promptsRef.current.forEach((p, i) => {
-        if (i < MAX_ENGINE_PROMPTS) {
-          data[i] = { text: p.label, weight: weights[i] ?? 0 };
-        }
-      });
+    const prompts = promptsRef.current;
+    const audioIdx = prompts.findIndex(p => p.isAudio);
+    const emotionIdx = prompts.findIndex(p => p.isEmotion);
+    let dest = 0;
+
+    if (emotionIdx !== -1 && dest < MAX_ENGINE_PROMPTS) {
+      data[dest++] = { text: promptForEngine(prompts[emotionIdx]), weight: weights[emotionIdx] ?? 0 };
+    }
+
+    if (audioIdx !== -1 && audioIdx !== emotionIdx && dest < MAX_ENGINE_PROMPTS) {
+      data[dest++] = { text: promptForEngine(prompts[audioIdx]), weight: weights[audioIdx] ?? 0 };
+    }
+
+    prompts.forEach((p, i) => {
+      if (i === emotionIdx || i === audioIdx || dest >= MAX_ENGINE_PROMPTS) return;
+      data[dest++] = { text: promptForEngine(p), weight: weights[i] ?? 0 };
+    });
+
+    while (dest < MAX_ENGINE_PROMPTS) {
+      data[dest++] = { text: '', weight: 0 };
     }
     post({ type: 'textPrompts', value: data });
   }, []);
@@ -300,6 +353,9 @@ function App() {
       if (state.openSettings !== undefined) {
         setIsSettingsOpen(!!state.openSettings);
       }
+      if (state.emotionPrompt !== undefined || state.emotionState !== undefined) {
+        upsertEmotionNode(state.emotionPrompt, state.emotionState);
+      }
       // Audio prompt loaded from native file picker
       if (state.isAudioPrompt && state.prompt) {
         setPrompts(prev => {
@@ -329,7 +385,7 @@ function App() {
     return () => {
       delete (window as any).updateState;
     };
-  }, [sendPrompts]);
+  }, [sendPrompts, upsertEmotionNode]);
 
   // ─── UI callbacks ─────────────────────────────────────────────────
 

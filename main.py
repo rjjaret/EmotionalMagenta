@@ -1,8 +1,10 @@
+import csv
 import time
 import cv2
 import os
 import sys
 import subprocess
+from functools import lru_cache
 from pathlib import Path
 
 
@@ -52,13 +54,13 @@ def get_music(prompt: str = "ambient music", model_name: str = "mrt2_base"):
     return audio_widget
 
 
-COLLIDER_BUNDLE_ID = "com.google.mrt2.collider"
+COLLIDER_BUNDLE_ID = "com.google.collider_em"
 _env_collider_path = os.environ.get("COLLIDER_APP_PATH")
 _repo_prebuilt_collider_path = (
     Path(__file__).resolve().parent
     / "prebuilt"
     / "collider"
-    / "mrt2_collider.app"
+    / "collider_em.app"
 )
 _backseat_collider_path = (
     Path(__file__).resolve().parent.parent
@@ -67,18 +69,23 @@ _backseat_collider_path = (
     / "build"
     / "examples"
     / "collider"
-    / "mrt2_collider.app"
+    / "collider_em.app"
 )
 COLLIDER_APP_CANDIDATES = [
     Path(_env_collider_path).expanduser() if _env_collider_path else None,
+    Path(__file__).resolve().parent / "magenta-realtime" / "build" / "examples" / "collider" / "collider_em.app",
     _repo_prebuilt_collider_path,
     _backseat_collider_path,
-    Path(__file__).resolve().parent / "magenta-realtime" / "build" / "examples" / "collider" / "mrt2_collider.app",
-    Path.home() / "Applications" / "MRT2 - Collider.app",
+    Path.home() / "Applications" / "collider_em.app",
 ]
-COLLIDER_PROMPT_KEY = "Collider_Prompt"
 COLLIDER_EMOTION_KEY = "Collider_EmotionState"
 COLLIDER_EMOTION_PROMPT_KEY = "Collider_EmotionPrompt"
+EMOTION_PROMPT_FORMATTING_PATH = Path(__file__).resolve().parent / "emotion_prompt_formatting.csv"
+
+
+class _SafeFormatDict(dict):
+    def __missing__(self, key: str) -> str:
+        return "{" + key + "}"
 
 
 def resolve_collider_app_path() -> Path | None:
@@ -88,20 +95,6 @@ def resolve_collider_app_path() -> Path | None:
         if candidate.exists():
             return candidate
     return None
-
-
-def set_collider_prompt(prompt: str) -> bool:
-    try:
-        subprocess.run(
-            ["defaults", "write", COLLIDER_BUNDLE_ID, COLLIDER_PROMPT_KEY, prompt],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        return True
-    except subprocess.CalledProcessError as exc:
-        print("Failed to write Collider prompt:", exc.stderr.strip() if exc.stderr else exc)
-        return False
 
 
 def set_collider_emotion_prompt(prompt: str) -> bool:
@@ -132,18 +125,39 @@ def set_collider_emotion_state(emotion: str) -> bool:
         return False
 
 
-def get_collider_prompt() -> str | None:
-    try:
-        result = subprocess.run(
-            ["defaults", "read", COLLIDER_BUNDLE_ID, COLLIDER_PROMPT_KEY],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        value = result.stdout.strip()
-        return value if value else None
-    except subprocess.CalledProcessError:
-        return None
+def clear_collider_emotion_prompt() -> bool:
+    result = subprocess.run(
+        ["defaults", "delete", COLLIDER_BUNDLE_ID, COLLIDER_EMOTION_PROMPT_KEY],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        return True
+    stderr = (result.stderr or "").strip().lower()
+    # Treat missing-key as success so startup/shutdown cleanup is idempotent.
+    if "does not exist" in stderr:
+        return True
+    print("Failed to clear Collider emotion prompt:", result.stderr.strip() if result.stderr else result.returncode)
+    return False
+
+
+@lru_cache(maxsize=1)
+def load_emotion_prompt_formatting() -> dict[str, str]:
+    formatting: dict[str, str] = {}
+    if not EMOTION_PROMPT_FORMATTING_PATH.exists():
+        return formatting
+
+    with EMOTION_PROMPT_FORMATTING_PATH.open("r", newline="", encoding="utf-8") as file_handle:
+        reader = csv.reader(file_handle)
+        for row in reader:
+            if len(row) < 2:
+                continue
+            key = row[0].strip()
+            value = row[1].strip()
+            if key:
+                formatting[key.lower()] = value
+    return formatting
 
 
 def emotion_music_descriptor(emotion: str) -> str:
@@ -154,28 +168,39 @@ def emotion_music_descriptor(emotion: str) -> str:
         "fear": "uneasy atmosphere, suspenseful evolving textures",
         "surprise": "sudden dynamic contrast,unexpected melodic turns",
         "disgust": "gritty timbre, dissonant clusters, rough experimental accents",
-        "neutral": "balanced cinematic underscore, steady pulse, restrained dynamics",
+        "neutral": "steady pulse, restrained dynamics",
         "calm": "warm sustained chords",
     }
     return descriptors.get(
         (emotion or "neutral").strip().lower(),
-        "cinematic instrumental score with expressive emotional phrasing",
+        "expressive emotional phrasing",
     )
 
 
-def build_emotion_modified_prompt(base_prompt: str, emotion: str) -> str:
-    descriptor = emotion_music_descriptor(emotion)
-    if not base_prompt:
-        return f"cinematic instrumental score, emotional tone: {emotion}, style: {descriptor}"
-    return (
-        f"{base_prompt.strip()} | emotional tone: {emotion} | "
-        f"musical direction: {descriptor}"
-    )
+def format_emotion_prompt(emotion: str) -> str:
+    formatting = load_emotion_prompt_formatting()
+    normalized = (emotion or "neutral").strip()
+    normalized_key = normalized.lower()
+    prompt_format = formatting.get("promptformat")
 
+    general_style_prompt = formatting.get("generalstyleprompt", "")
+    emotion_prompt = formatting.get(normalized_key, "")
+    if not emotion_prompt:
+        emotion_prompt = emotion_music_descriptor(normalized)
 
-def build_live_emotion_prompt(emotion: str) -> str:
-    normalized = (emotion or "neutral").strip().lower()
-    return f"emotional input: {normalized}"
+    if prompt_format:
+        values = _SafeFormatDict(
+            {
+                "GeneralStylePrompt": general_style_prompt,
+                "EmotionPrompt": emotion_prompt,
+                "emotion": normalized_key,
+                "Emotion": normalized,
+            }
+        )
+        return prompt_format.format_map(values).strip()
+
+    parts = [part for part in [general_style_prompt, emotion_prompt] if part]
+    return ", ".join(parts) if parts else f"emotional tone: {normalized_key} | musical direction: {emotion_prompt}"
 
 
 def launch_collider() -> bool:
@@ -184,13 +209,13 @@ def launch_collider() -> bool:
         print("Collider app not found in expected locations:")
         for candidate in COLLIDER_APP_CANDIDATES:
             print(f" - {candidate}")
-        print("Build/deploy with: cmake --build build --target deploy_mrt2_collider -j10")
+        print("Build/deploy with: cmake --build build --target deploy_collider_em -j10")
         return False
     try:
-        binary_path = collider_app_path / "Contents" / "MacOS" / "mrt2_collider"
+        binary_path = collider_app_path / "Contents" / "MacOS" / "collider_em"
         print(f"Launching Collider binary: {binary_path}")
         # Ensure we do not re-focus a stale already-running app instance.
-        subprocess.run(["pkill", "-x", "mrt2_collider"], check=False)
+        subprocess.run(["pkill", "-x", "collider_em"], check=False)
         subprocess.Popen([str(binary_path)])
         return True
     except (subprocess.CalledProcessError, OSError) as exc:
@@ -209,8 +234,7 @@ def run_facial_emotion_collider_callback(
     camera_width: int = 320,
     camera_height: int = 240,
 ):
-    base_prompt = get_collider_prompt() or "cinematic instrumental score"
-    print(f"Base Collider prompt: {base_prompt}")
+    clear_collider_emotion_prompt()
 
     analyzer = EmotionAnalyzer()
     analyzer.start()
@@ -291,19 +315,18 @@ def run_facial_emotion_collider_callback(
                         and candidate_count < 3
                     ):
                         emotion_to_send = last_sent_emotion
-                    modified_prompt = build_emotion_modified_prompt(base_prompt, emotion_to_send)
-                    live_emotion_prompt = build_live_emotion_prompt(emotion_to_send)
+                    modified_prompt = format_emotion_prompt(emotion_to_send)
                     print(f"Updating Collider prompt from emotion: {emotion_to_send}")
-                    wrote_prompt = set_collider_prompt(modified_prompt)
-                    wrote_live_prompt = set_collider_emotion_prompt(live_emotion_prompt)
+                    wrote_live_prompt = set_collider_emotion_prompt(modified_prompt)
                     wrote_emotion = set_collider_emotion_state(emotion_to_send)
-                    if wrote_prompt and wrote_live_prompt and wrote_emotion:
-                        print("Collider prompt updated with emotion context (persistent + live).")
+                    if wrote_live_prompt and wrote_emotion:
+                        print("Collider emotion label + prompt updated.")
                         last_sent_emotion = emotion_to_send
 
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
     finally:
+        clear_collider_emotion_prompt()
         unsubscribe_from_periodic_aggregation(analyzer, sub_id)
         cap.release()
         analyzer.stop()

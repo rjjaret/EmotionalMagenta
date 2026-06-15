@@ -10,7 +10,8 @@ QUIET_CMAKE_DEV_WARNINGS="${QUIET_CMAKE_DEV_WARNINGS:-1}"
 
 MAGENTA_REALTIME_DIR="$ROOT_DIR/magenta-realtime"
 MAGENTA_REALTIME_BUILD_DIR="${MAGENTA_REALTIME_BUILD_DIR:-$MAGENTA_REALTIME_DIR/build}"
-COLLIDER_APP_BUILD_PATH="$MAGENTA_REALTIME_BUILD_DIR/examples/collider/mrt2_collider.app"
+COLLIDER_APP_BUILD_PATH="$MAGENTA_REALTIME_BUILD_DIR/examples/collider/collider_em.app"
+STAGE_PREBUILT_SCRIPT="$ROOT_DIR/scripts/stage_prebuilt_collider.sh"
 
 log() {
   printf '\n[%s] %s\n' "$(date '+%H:%M:%S')" "$*"
@@ -50,7 +51,7 @@ ensure_cmd pip
 if [[ ! -d "$MAGENTA_REALTIME_DIR" ]]; then
   echo "Error: missing in-repo source at $MAGENTA_REALTIME_DIR" >&2
   echo "Collider source must live in this project under magenta-realtime/." >&2
-  echo "Expected Collider CMake project there (for target deploy_mrt2_collider)." >&2
+  echo "Expected Collider CMake project there (for target deploy_collider_em)." >&2
   exit 1
 fi
 
@@ -102,13 +103,20 @@ fi
 cmake "${cmake_configure_args[@]}"
 
 log "Building and deploying Collider app"
-cmake --build "$MAGENTA_REALTIME_BUILD_DIR" --target deploy_mrt2_collider -j"$JOBS"
+cmake --build "$MAGENTA_REALTIME_BUILD_DIR" --target deploy_collider_em -j"$JOBS"
 
 if [[ -d "$COLLIDER_APP_BUILD_PATH" ]]; then
   log "Collider app available at: $COLLIDER_APP_BUILD_PATH"
+
+  if [[ -x "$STAGE_PREBUILT_SCRIPT" ]]; then
+    log "Staging prebuilt Collider app"
+    "$STAGE_PREBUILT_SCRIPT"
+  else
+    log "Skipping prebuilt staging; script not executable: $STAGE_PREBUILT_SCRIPT"
+  fi
 else
   log "Collider app not found in build output: $COLLIDER_APP_BUILD_PATH"
-  log "You can also use an already installed app at ~/Applications/MRT2 - Collider.app"
+  log "You can also use an already installed app at ~/Applications/collider_em.app"
 fi
 
 log "Rebuild complete"

@@ -9,9 +9,9 @@
     "postbuild": "node postbuild.js",
     "preview": "vite preview --config config/vite.config.ts",
     "kill": "pkill -f Collider 2>/dev/null || true",
-    "open": "open ~/Applications/MRT2\\ -\\ Collider.app",
-    "copy": "cp -r dist/* ~/Applications/MRT2\\ -\\ Collider.app/Contents/Resources/collider_ui/",
-    "cmake": "cd ../../.. && .venv/bin/cmake --build build --target deploy_mrt2_collider -j10",
+    "open": "open ~/Applications/collider_em.app",
+    "copy": "cp -r dist/* ~/Applications/collider_em.app/Contents/Resources/collider_ui/",
+    "cmake": "cd ../../.. && .venv/bin/cmake --build build --target deploy_collider_em -j10",
     "launch": "npm run kill && npm run cmake && npm run open",
     "launch:ui": "npm run build && npm run kill && npm run copy && npm run open",
     "launch:dev": "npm run kill && npm run open"

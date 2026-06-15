@@ -2,9 +2,9 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SOURCE_APP_PATH="${SOURCE_APP_PATH:-$ROOT_DIR/magenta-realtime/build/examples/collider/mrt2_collider.app}"
+SOURCE_APP_PATH="${SOURCE_APP_PATH:-$ROOT_DIR/magenta-realtime/build/examples/collider/collider_em.app}"
 DEST_DIR="$ROOT_DIR/prebuilt/collider"
-DEST_APP_PATH="$DEST_DIR/mrt2_collider.app"
+DEST_APP_PATH="$DEST_DIR/collider_em.app"
 AUTO_STAGE="${AUTO_STAGE:-1}"
 
 log() {
@@ -32,7 +32,7 @@ if command -v git >/dev/null 2>&1; then
 
   if [[ "$AUTO_STAGE" == "1" ]]; then
     log "Staging prebuilt app and .gitattributes"
-    git add .gitattributes prebuilt/collider/mrt2_collider.app
+    git add .gitattributes prebuilt/collider/collider_em.app
   fi
 fi
 

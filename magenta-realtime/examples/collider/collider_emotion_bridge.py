@@ -17,9 +17,8 @@ from pathlib import Path
 
 import cv2
 
-COLLIDER_BUNDLE_ID = "com.google.mrt2.collider"
+COLLIDER_BUNDLE_ID = "com.google.collider_em"
 COLLIDER_EMOTION_KEY = "Collider_EmotionState"
-COLLIDER_EMOTION_PROMPT_KEY = "Collider_EmotionPrompt"
 COLLIDER_BRIDGE_STATUS_KEY = "Collider_EmotionBridgeStatus"
 COLLIDER_BRIDGE_DETAIL_KEY = "Collider_EmotionBridgeDetail"
 
@@ -36,15 +35,8 @@ signal.signal(signal.SIGINT, _on_signal)
 
 
 def write_collider_emotion(emotion: str) -> None:
-    prompt = f"emotional influence: {emotion}"
     subprocess.run(
         ["defaults", "write", COLLIDER_BUNDLE_ID, COLLIDER_EMOTION_KEY, emotion],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    subprocess.run(
-        ["defaults", "write", COLLIDER_BUNDLE_ID, COLLIDER_EMOTION_PROMPT_KEY, prompt],
         check=False,
         capture_output=True,
         text=True,

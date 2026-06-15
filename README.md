@@ -19,11 +19,12 @@ The current main flow:
 
 - macOS
 - Python 3.12+
-- CMake
 - Webcam access (for live emotion detection)
 - Network access for model downloads (`mrt models ...`)
 
 ## Quick Start
+
+No local build is required for normal use. The repo includes a prebuilt `collider_em.app`.
 
 1. Create and activate a virtual environment:
 
@@ -38,35 +39,18 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-3. Initialize and download model assets:
+3. Run the app.:
 
-```bash
-mrt models init
-mrt models download mrt2_base
-```
-
-4. Build Collider from local sources:
-
-```bash
-cmake -S magenta-realtime -B magenta-realtime/build
-cmake --build magenta-realtime/build --target deploy_mrt2_collider -j10
-```
-
-5. Run the app:
-
+The first time it runs may take a little longer while it downloads the emotion detection model.
 ```bash
 python main.py
 ```
 
 Press `q` in the OpenCV loop to exit.
 
-## One-Command Rebuild
+## Build Scripts
 
-For a full local rebuild (editable install, model prep, and Collider build):
-
-```bash
-./scripts/rebuild_all.sh
-```
+If you need to build from source or refresh the checked-in prebuilt app, use these scripts:
 
 Useful environment overrides:
 - `MODEL_NAME` (default `mrt2_base`)
@@ -75,22 +59,27 @@ Useful environment overrides:
 - `MAGENTA_REALTIME_BUILD_DIR` (default `magenta-realtime/build`)
 - `JOBS` (default `10`)
 
-Example:
-
 ```bash
-MODEL_NAME=mrt2_small JOBS=8 ./scripts/rebuild_all.sh
+./scripts/rebuild_all.sh
 ```
+
+Optional overrides for `rebuild_all.sh`:
+- `MODEL_NAME` (default `mrt2_base`)
+- `DOWNLOAD_MODELS` (`1` or `0`)
+- `AUTO_INSTALL_CMAKE` (`1` or `0`)
+- `MAGENTA_REALTIME_BUILD_DIR` (default `magenta-realtime/build`)
+- `JOBS` (default `10`)
 
 ## Collider App Discovery
 
 `main.py` looks for the Collider app in this order:
 
 1. `COLLIDER_APP_PATH` (environment variable)
-2. `prebuilt/collider/mrt2_collider.app` (checked-in prebuilt app)
-3. `magenta-realtime/build/examples/collider/mrt2_collider.app`
-4. `~/Applications/MRT2 - Collider.app`
+2. `prebuilt/collider/collider_em.app` (checked-in prebuilt app)
+3. `magenta-realtime/build/examples/collider/collider_em.app`
+4. `~/Applications/collider_em.app`
 
-If the app is missing, rebuild using the commands above or set `COLLIDER_APP_PATH` explicitly.
+If the app is missing, run `./scripts/rebuild_all.sh` or set `COLLIDER_APP_PATH` explicitly.
 
 ## Shipping Prebuilt Collider In Git
 
@@ -98,7 +87,7 @@ Yes. You can include a built Collider app so users can run immediately without b
 
 Recommended approach:
 1. Build Collider once on a trusted macOS machine.
-2. Copy the app bundle to `prebuilt/collider/mrt2_collider.app`.
+2. Copy the app bundle to `prebuilt/collider/collider_em.app`.
 3. Commit with Git LFS enabled for `prebuilt/collider/**`.
 
 Git LFS setup (once per clone):
@@ -106,7 +95,7 @@ Git LFS setup (once per clone):
 ```bash
 git lfs install
 git lfs track "prebuilt/collider/**"
-git add .gitattributes prebuilt/collider/mrt2_collider.app
+git add .gitattributes prebuilt/collider/collider_em.app
 git commit -m "Add prebuilt Collider app"
 ```
 
@@ -117,7 +106,7 @@ Or use the helper script to copy from your latest local build and stage changes:
 ```
 
 Optional overrides:
-- `SOURCE_APP_PATH=/absolute/path/to/mrt2_collider.app`
+- `SOURCE_APP_PATH=/absolute/path/to/collider_em.app`
 - `AUTO_STAGE=0` (copy only, do not run `git add`)
 
 Notes:
@@ -162,14 +151,13 @@ Symptoms:
 Fix:
 
 ```bash
-cmake -S magenta-realtime -B magenta-realtime/build
-cmake --build magenta-realtime/build --target deploy_mrt2_collider -j10
+./scripts/rebuild_all.sh
 ```
 
 Or set an explicit app path:
 
 ```bash
-export COLLIDER_APP_PATH="/absolute/path/to/mrt2_collider.app"
+export COLLIDER_APP_PATH="/absolute/path/to/collider_em.app"
 python main.py
 ```
 
